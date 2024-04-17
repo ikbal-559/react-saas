@@ -33,7 +33,7 @@ export default function ({feature, answer, children}) {
 
                             <div className=" ">
                                 You do not have enough credits for this feature.
-                                <a className="text-indigo-800" href='/'> Buy new </a>
+                                <a className="text-indigo-800" href={route('credit.index')}> Buy new </a>
                             </div>
                         </div>
                     )}

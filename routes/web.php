@@ -14,6 +14,8 @@ Route::get('/', function () {
     ]);
 });
 
+Route::get('/buy-credits/webhook', [\App\Http\Controllers\CreditController::class, 'webhook'])->name('credit.webhook');
+
 Route::get('/dashboard', function () {
     return Inertia::render('Dashboard');
 })->middleware(['auth', 'verified'])->name('dashboard');
@@ -28,9 +30,10 @@ Route::middleware('auth')->group(function () {
     Route::post('/feature-one-sumbit', [\App\Http\Controllers\FeatureOneController::class, 'calculator'])->name('feature-one.calculator');
 
 
-
-
-
+    Route::get('/buy-credits', [\App\Http\Controllers\CreditController::class, 'index'])->name('credit.index');
+    Route::get('/buy-credits/success', [\App\Http\Controllers\CreditController::class, 'success'])->name('credit.success');
+    Route::get('/buy-credits/cancel', [\App\Http\Controllers\CreditController::class, 'cancel'])->name('credit.cancel');
+    Route::post('/buy-credits/{package}', [\App\Http\Controllers\CreditController::class, 'buyCredits'])->name('credit.buy');
 
 });
 
