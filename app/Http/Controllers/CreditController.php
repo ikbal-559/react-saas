@@ -7,8 +7,9 @@ use App\Http\Resources\PackageResource;
 use App\Models\Feature;
 use App\Models\Package;
 use App\Models\Transaction;
+use Illuminate\Support\Facades\Log;
 use Stripe\StripeClient;
-use Stripe\Webhook;
+use Exception;
 
 class CreditController extends Controller
 {
@@ -69,43 +70,44 @@ class CreditController extends Controller
             ->with('error', 'There was an error in payment process.');
     }
 
+    /**
+     * @throws Exception
+     */
     public function webhook()
     {
         $endpoint_secret = env('STRIPE_WEBHOOK_KEY');
         $payload = @file_get_contents('php://input');
         $sig_header = $_SERVER['HTTP_STRIPE_SIGNATURE'];
-        $event = null;
-
         try {
             $event = \Stripe\Webhook::constructEvent(
                 $payload, $sig_header, $endpoint_secret
             );
-        } catch(\UnexpectedValueException $e) {
+            // Handle the event
+            switch ($event->type) {
+                case 'payment_intent.succeeded':
+                    $session = $event->data->object;
+                    $transaction = Transaction::with('user')->where('session_id', $session->id)->first();
+                    if ($transaction && $transaction->status === 'pending') {
+                        $transaction->status = 'paid';
+                        $transaction->save();
+                        $transaction->user->available_credits += $transaction->credits;
+                        $transaction->user->save();
+                    }
+                    return response(200);
+                default:
+                    throw new Exception($event->type);
+            }
+        } catch (\UnexpectedValueException $e) {
             // Invalid payload
-          return response(400);
-        } catch(\Stripe\Exception\SignatureVerificationException $e) {
+            return response(400);
+        } catch (\Stripe\Exception\SignatureVerificationException $e) {
             // Invalid signature
-          return response(400);
+            return response(400);
+        } catch (Exception $e) {
+            // Invalid signature
+            Log::info($e->getMessage());
+            return response(400);
         }
-
-        // Handle the event
-        switch ($event->type) {
-            case 'payment_intent.succeeded':
-               $session = $event->data->object;
-               $transaction = Transaction::with('user')->where('session_id', $session->id)->first();
-               if($transaction && $transaction->status === 'pending'){
-                   $transaction->status = 'paid';
-                   $transaction->save();
-                   $transaction->user->available_credits += $transaction->credits;
-                   $transaction->user->save();
-               }
-
-            default:
-                echo 'Received unknown event type ' . $event->type;
-        }
-
-        return response(200);
-
     }
 
 }
